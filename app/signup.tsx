@@ -4,7 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, FlatList, S
 const skillCategories = [
   'Coding', 'Singing', 'Video Editing', 'Fitness', 
   'Painting', 'Photography', 'Dancing', 'Cooking', 
-  'Music', 'Language', 'Design', 'Writing'
+  'Music', 'Language', 'Design', 'Writing','Others...'
 ];
 
 const Signup = () => {
