@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -12,39 +12,105 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-interface Chat{
-    id:string,
-    text:string,
-    sender:string
+interface Chat {
+  text: string;
+  sender: 'me' | 'other';  // Made sender required and strictly typed
+  timestamp?: number;
+}
+
+interface MessageData {
+  recipientId: string;
+  text: string;
+  timestamp: number;
 }
 
 const ChatBox = () => {
-  const [messages, setMessages] = useState([
-    { id: '1', text: 'Hello!', sender: 'other' },
-    { id: '2', text: 'Hi there!', sender: 'me' },
-    { id: '3', text: 'How are you?', sender: 'other' },
+  const [messages, setMessages] = useState<Chat[]>([
+    { text: 'Hello!', sender: 'other', timestamp: Date.now() - 3000 },
+    { text: 'Hi there!', sender: 'me', timestamp: Date.now() - 2000 },
+    { text: 'How are you?', sender: 'other', timestamp: Date.now() - 1000 },
   ]);
   const [inputMessage, setInputMessage] = useState('');
+  const [ws, setWs] = useState<WebSocket | null>(null);
 
-  const sendMessage = () => {
-    if (inputMessage.trim() === '') return;
-
-    const newMessage = {
-      id: Date.now().toString(),
-      text: inputMessage,
-      sender: 'me'
+  useEffect(() => {
+    const userId = 'your-mongodb-id'; // Replace with the user's actual MongoDB `_id`
+    const socket = new WebSocket(`ws://192.168.0.108:5000/?userId=${userId}`);
+  
+    socket.onopen = () => {
+      console.log('WebSocket connected');
     };
+  
+    socket.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      console.log('Received message:', message);
+      
+      // Ensure the new message matches the Chat interface
+      const newMessage: Chat = {
+        text: message.text,
+        sender: 'other',
+        timestamp: Date.now()
+      };
 
-    setMessages([...messages, newMessage]);
+      setMessages(prevMessages => [...prevMessages, newMessage]);
+    };
+  
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  
+    socket.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+  
+    setWs(socket);
+  
+    return () => {
+      socket.close();
+    };
+  }, []);
+  
+  const sendMessage = (recipientId: string) => {
+    if (inputMessage.trim() === '' || !ws) return;
+  
+    const messageData: MessageData = {
+      recipientId,
+      text: inputMessage,
+      timestamp: Date.now()
+    };
+  
+    ws.send(JSON.stringify(messageData));
+    console.log('Sent message:', messageData);
+  
+    const newMessage: Chat = {
+      text: inputMessage,
+      sender: 'me',
+      timestamp: Date.now()
+    };
+  
+    setMessages(prevMessages => [...prevMessages, newMessage]);
     setInputMessage('');
   };
 
-  const renderMessage = ({ item }:{item:Chat}) => (
+  const renderMessage = ({ item }: { item: Chat }) => (
     <View style={[
       styles.messageContainer, 
       item.sender === 'me' ? styles.myMessage : styles.otherMessage
     ]}>
-      <Text style={styles.messageText}>{item.text}</Text>
+      <Text style={[
+        styles.messageText,
+        item.sender === 'me' ? styles.myMessageText : styles.otherMessageText
+      ]}>
+        {item.text}
+      </Text>
+      {item.timestamp && (
+        <Text style={styles.timestamp}>
+          {new Date(item.timestamp).toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })}
+        </Text>
+      )}
     </View>
   );
 
@@ -52,31 +118,34 @@ const ChatBox = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
         <Image 
           source={{ uri: 'https://example.com/avatar.jpg' }} 
           style={styles.avatar} 
         />
-        <Text style={styles.headerTitle}>John Doe</Text>
+        <View style={styles.headerTextContainer}>
+          <Text style={styles.headerTitle}>John Doe</Text>
+          <Text style={styles.headerSubtitle}>Online</Text>
+        </View>
       </View>
 
       {/* Messages List */}
       <FlatList
         data={messages}
         renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => index.toString()}
         style={styles.messageList}
+        inverted={false}
+        contentContainerStyle={styles.messageListContent}
       />
 
       {/* Input Area */}
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
         style={styles.inputContainer}
       >
         <TouchableOpacity style={styles.attachButton}>
-          <Ionicons name="attach" size={24} color="gray" />
+          <Ionicons name="attach" size={24} color="#075E54" />
         </TouchableOpacity>
         
         <TextInput
@@ -85,14 +154,20 @@ const ChatBox = () => {
           placeholder="Type a message"
           style={styles.input}
           multiline
+          maxLength={1000}
+          placeholderTextColor="#999"
         />
         
         <TouchableOpacity 
-          style={styles.sendButton} 
-          onPress={sendMessage}
+          style={[
+            styles.sendButton,
+            !inputMessage.trim() && styles.sendButtonDisabled
+          ]} 
+          onPress={() => sendMessage('6fgvhdbfiuhsfeheefue8')}
+          disabled={!inputMessage.trim()}
         >
           <Ionicons 
-            name={inputMessage ? "send" : "mic"} 
+            name={inputMessage.trim() ? "send" : "mic"} 
             size={24} 
             color="white" 
           />
@@ -105,7 +180,7 @@ const ChatBox = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#E5DDD5',
   },
   header: {
     flexDirection: 'row',
@@ -113,24 +188,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#075E54',
     paddingVertical: 10,
     paddingHorizontal: 15,
+    paddingTop: Platform.OS === 'ios' ? 50 : 10,
   },
-  backButton: {
-    marginRight: 10,
+  headerTextContainer: {
+    flex: 1,
+    marginLeft: 10,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 10,
+    backgroundColor: '#ddd',
   },
   headerTitle: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
+  headerSubtitle: {
+    color: '#e0e0e0',
+    fontSize: 14,
+  },
   messageList: {
     flex: 1,
+  },
+  messageListContent: {
     padding: 10,
+    paddingBottom: 20,
   },
   messageContainer: {
     maxWidth: '80%',
@@ -141,22 +225,39 @@ const styles = StyleSheet.create({
   myMessage: {
     alignSelf: 'flex-end',
     backgroundColor: '#DCF8C6',
+    borderTopRightRadius: 0,
   },
   otherMessage: {
     alignSelf: 'flex-start',
     backgroundColor: 'white',
+    borderTopLeftRadius: 0,
   },
   messageText: {
     fontSize: 16,
+    marginBottom: 4,
+  },
+  myMessageText: {
+    color: '#000',
+  },
+  otherMessageText: {
+    color: '#000',
+  },
+  timestamp: {
+    fontSize: 12,
+    color: '#999',
+    alignSelf: 'flex-end',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
     padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
   },
   attachButton: {
     marginRight: 10,
+    padding: 5,
   },
   input: {
     flex: 1,
@@ -166,6 +267,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     marginRight: 10,
+    fontSize: 16,
   },
   sendButton: {
     backgroundColor: '#075E54',
@@ -174,6 +276,9 @@ const styles = StyleSheet.create({
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#94B3AD',
   },
 });
 
