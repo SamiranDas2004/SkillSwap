@@ -5,8 +5,14 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ApprovedRequests from '../approvedRequest';
+import {jwtDecode} from 'jwt-decode';
 
 const { width } = Dimensions.get('window');
+
+interface DecodedToken {
+  exp: number;
+  type:string
+}
 
 const Explore = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -19,7 +25,27 @@ const Explore = () => {
 
   const checkAuthStatus = async () => {
     const token = await AsyncStorage.getItem('authToken');
-    setIsSignedIn(!!token);
+
+    if (token) {
+      try {
+        const decodedToken =  jwtDecode(token) as DecodedToken;
+        const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
+
+        if (decodedToken.exp < currentTime) {
+          // Token expired, remove it
+          await AsyncStorage.removeItem('authToken');
+          setIsSignedIn(false);
+        } else {
+          setIsSignedIn(true);
+        }
+      } catch (error) {
+        console.error('Error decoding token:', error);
+        await AsyncStorage.removeItem('authToken');
+        setIsSignedIn(false);
+      }
+    } else {
+      setIsSignedIn(false);
+    }
   };
 
   const toggleMenu = () => {
@@ -63,8 +89,6 @@ const Explore = () => {
               <Ionicons name="send-outline" size={20} color="#4CAF50" />
               <Text style={styles.menuItemText}>Send Request</Text>
             </TouchableOpacity>
-            
-            
 
             {/* Horizontal Line Separator */}
             <View style={styles.horizontalLine} />
