@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, FlatList, ScrollView } from 'react-native';
+import axios from "axios";
+
 
 const skillCategories = [
   'Coding', 'Singing', 'Video Editing', 'Fitness', 
@@ -18,32 +20,50 @@ const Signup = () => {
   const [skillInput, setSkillInput] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     const { name, email, password, skills } = data;
-
+  
     if (!name || !email || !password) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
+  
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       Alert.alert('Error', 'Please enter a valid email');
       return;
     }
-
+  
     if (password.length < 8) {
       Alert.alert('Error', 'Password must be at least 8 characters long');
       return;
     }
-
+  
     if (skills.length === 0) {
       Alert.alert('Error', 'Please add at least one skill');
       return;
     }
-
-    console.log('Signup attempted:', { name, email, skills });
+  
+    try {
+      const response = await axios.post('http://192.168.0.108:5000/user/create', {
+        name,
+        email,
+        password,
+        skills,
+        selectedCategory
+      });
+  
+      if (response.status === 201) {
+        Alert.alert('Success', 'Account created successfully');
+      } else {
+        Alert.alert('Error', 'Something went wrong, please try again');
+      }
+    } catch (error: any) {
+      console.error('Signup Error:', error.response?.data || error.message);
+      Alert.alert('Error', error.response?.data?.message || 'Failed to sign up');
+    }
   };
+  
 
   const handleChange = (field: string, value: string) => {
     setData(prevData => ({

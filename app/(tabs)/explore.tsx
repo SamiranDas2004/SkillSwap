@@ -1,33 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import ApprovedRequests from '../approvedRequest';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ApprovedRequests from '../approvedRequest';
 
 const { width } = Dimensions.get('window');
 
 const Explore = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    const token = await AsyncStorage.getItem('authToken');
+    setIsSignedIn(!!token);
+  };
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
-  const handlePendingRequest = () => {
+  const handleSignOut = async () => {
+    await AsyncStorage.removeItem('authToken');
+    setIsSignedIn(false);
     setIsMenuOpen(false);
-    router.push("../pendingRequest");
-  };
-
-  const handleSendRequest = () => {
-    setIsMenuOpen(false);
-    router.push("../sendRequest");
-  };
-
-  const handleApprovedRequest = () => {
-    setIsMenuOpen(false);
-    router.push('../approvedRequest');
+    router.push("../signin");
   };
 
   return (
@@ -37,7 +40,6 @@ const Explore = () => {
         <Ionicons name="menu" size={30} color="#4CAF50" />
       </TouchableOpacity>
 
-      {/* Main Content */}
       <View style={styles.content}>
         <ApprovedRequests />
       </View>
@@ -46,29 +48,51 @@ const Explore = () => {
       {isMenuOpen && (
         <View style={styles.menuOverlay}>
           <View style={styles.menuContainer}>
-            <TouchableOpacity style={styles.menuItem} onPress={handlePendingRequest}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => router.push("../pendingRequest")}
+            >
               <Ionicons name="time-outline" size={20} color="#4CAF50" />
               <Text style={styles.menuItemText}>Pending Requests</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.menuItem} onPress={handleSendRequest}>
+            
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => router.push("../sendRequest")}
+            >
               <Ionicons name="send-outline" size={20} color="#4CAF50" />
               <Text style={styles.menuItemText}>Send Request</Text>
             </TouchableOpacity>
+            
+            
 
             {/* Horizontal Line Separator */}
             <View style={styles.horizontalLine} />
 
-            <View>
-              <TouchableOpacity style={styles.menuItem} onPress={()=>router.push("../signup")}>
-                <Text style={styles.menuItemText}>Signup</Text>
+            {isSignedIn ? (
+              <TouchableOpacity style={styles.menuItem} onPress={handleSignOut}>
+                <Ionicons name="log-out-outline" size={20} color="#4CAF50" />
+                <Text style={styles.menuItemText}>Sign Out</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem} onPress={()=>router.push("../signin")}>
-                <Text style={styles.menuItemText}>Signin</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.menuItem}>
-                <Text style={styles.menuItemText}>Signout</Text>
-              </TouchableOpacity>
-            </View>
+            ) : (
+              <>
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  onPress={() => router.push("../signup")}
+                >
+                  <Ionicons name="person-add-outline" size={20} color="#4CAF50" />
+                  <Text style={styles.menuItemText}>Sign Up</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  onPress={() => router.push("../signin")}
+                >
+                  <Ionicons name="log-in-outline" size={20} color="#4CAF50" />
+                  <Text style={styles.menuItemText}>Sign In</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       )}
@@ -130,7 +154,7 @@ const styles = StyleSheet.create({
   horizontalLine: {
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    marginVertical: 10, // Adds space between the items and the line
+    marginVertical: 10,
   },
 });
 

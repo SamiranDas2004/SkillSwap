@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
+  Text, 
   StyleSheet,
-  Alert,
   FlatList,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface RequestData {
   name: string;
@@ -24,73 +22,43 @@ interface SentRequest extends RequestData {
 }
 
 const SendRequest = () => {
-  const [requestData, setRequestData] = useState<RequestData>({
-    name: '',
-    email: '',
-    department: '',
-    message: '',
-  });
+  const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
 
-  const [sentRequests, setSentRequests] = useState<SentRequest[]>([
-    {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      department: 'IT',
-      message: 'Request for new laptop',
-      status: 'Pending',
-      date: '2024-01-15',
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      email: 'jane@example.com',
-      department: 'HR',
-      message: 'Request for training program',
-      status: 'Approved',
-      date: '2024-01-10',
-    },
-    {
-      id: '3',
-      name: 'Mike Johnson',
-      email: 'mike@example.com',
-      department: 'Finance',
-      message: 'Request for budget allocation',
-      status: 'Rejected',
-      date: '2024-01-05',
-    },
-    {
-        id: '4',
-        name: 'Mike Johnson',
-        email: 'mike@example.com',
-        department: 'Finance',
-        message: 'Request for budget allocation',
-        status: 'Rejected',
-        date: '2024-01-05',
-      },
-      {
-        id: '5',
-        name: 'Mike Johnson',
-        email: 'mike@example.com',
-        department: 'Finance',
-        message: 'Request for budget allocation',
-        status: 'Rejected',
-        date: '2024-01-05',
-      },
-      {
-        id: '6',
-        name: 'Mike Johnson',
-        email: 'mike@example.com',
-        department: 'Finance',
-        message: 'Request for budget allocation',
-        status: 'Rejected',
-        date: '2024-01-05',
-      },
-  ]);
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const token = await AsyncStorage.getItem('authToken');
+        console.log(token); 
 
+        if (!token) {
+          alert("You are not signed in. Please sign in to request a session.");
+          return;
+        }
 
+        const response = await axios.post('http://192.168.0.108:5000/req/showAllRequest', {}, {
+          headers: {
+            authToken: token,  // Pass the token in the headers
+          },
+        });
 
+        const requests = response.data.data.map((item: any) => ({
+          id: item._id,
+          name: item.to.name,  // Display the name from 'to' object
+          email: item.to.email,  // Display email from 'to' object
+          department: item.to.department || 'Not Provided', // Default if no department
+          message: item.message || 'No message provided', // Default if no message
+          status: item.status === 'pending' ? 'Pending' : item.status === 'approved' ? 'Approved' : 'Rejected',
+          date: new Date(item.date).toLocaleDateString(),
+        }));
 
+        setSentRequests(requests);
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+      }
+    };
+
+    fetchRequests();
+  }, []);
 
   const renderSentRequestItem = ({ item }: { item: SentRequest }) => (
     <View style={styles.sentRequestItem}>
@@ -110,8 +78,6 @@ const SendRequest = () => {
         </Text>
       </View>
       <Text style={styles.sentRequestEmail}>{item.email}</Text>
-      <Text style={styles.sentRequestDepartment}>{item.department}</Text>
-      <Text style={styles.sentRequestMessage}>{item.message}</Text>
       <Text style={styles.sentRequestDate}>{item.date}</Text>
     </View>
   );
@@ -122,63 +88,8 @@ const SendRequest = () => {
       renderItem={renderSentRequestItem}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
-        <View>
-         
-          {/* Form */}
-          {/* <View style={styles.formContainer}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Name</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="person-outline" style={styles.inputIcon} size={20} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your name"
-                  value={requestData.name}
-                  onChangeText={(value) => handleInputChange('name', value)}
-                />
-              </View>
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" style={styles.inputIcon} size={20} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  value={requestData.email}
-                  onChangeText={(value) => handleInputChange('email', value)}
-                />
-              </View>
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Department</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="briefcase-outline" style={styles.inputIcon} size={20} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your department"
-                  value={requestData.department}
-                  onChangeText={(value) => handleInputChange('department', value)}
-                />
-              </View>
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Message</Text>
-              <TextInput
-                style={[styles.input, styles.messageInput]}
-                placeholder="Enter your message"
-                multiline
-                value={requestData.message}
-                onChangeText={(value) => handleInputChange('message', value)}
-              />
-            </View>
-            <TouchableOpacity style={styles.submitButton} onPress={submitRequest}>
-              <Text style={styles.submitButtonText}>Submit Request</Text>
-            </TouchableOpacity>
-          </View> */}
-          <View style={styles.sentRequestsHeader}>
-            <Text style={styles.sentRequestsHeaderTitle}>Sent Requests</Text>
-          </View>
+        <View style={styles.sentRequestsHeader}>
+          <Text style={styles.sentRequestsHeaderTitle}>Sent Requests</Text>
         </View>
       }
       contentContainerStyle={styles.sentRequestsList}
@@ -187,73 +98,6 @@ const SendRequest = () => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f5f5f5',
-      },
-      header: {
-        backgroundColor: '#4CAF50',
-        paddingVertical: 15,
-        paddingHorizontal: 20,
-      },
-      headerTitle: {
-        color: 'white',
-        fontSize: 20,
-        fontWeight: 'bold',
-        textAlign: 'center',
-      },
-      formContainer: {
-        padding: 20,
-        backgroundColor: 'white',
-        margin: 15,
-        borderRadius: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-      },
-      inputGroup: {
-        marginBottom: 15,
-      },
-      label: {
-        marginBottom: 5,
-        color: '#333',
-        fontWeight: 'bold',
-      },
-      inputWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-      },
-      inputIcon: {
-        marginLeft: 10,
-        marginRight: 10,
-      },
-      input: {
-        flex: 1,
-        height: 50,
-        paddingRight: 15,
-      },
-      messageInput: {
-        height: 100,
-        textAlignVertical: 'top',
-        paddingTop: 15,
-      },
-      submitButton: {
-        backgroundColor: '#4CAF50',
-        padding: 15,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 10,
-      },
-      submitButtonText: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 16,
-      },
   sentRequestsHeader: {
     backgroundColor: '#4CAF50',
     paddingVertical: 10,

@@ -1,5 +1,8 @@
+import axios from 'axios';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Signin = () => {
 const [data,setData]=useState({
@@ -7,9 +10,20 @@ const [data,setData]=useState({
     password:""
 })
 
+const navigate=useRouter();
 
-  const handleSignin = () => {
-    // Signin logic
+  const handleSignin = async() => {
+    const {password,email}=data
+    const response= await axios.post("http://192.168.0.108:5000/user/login",{
+      email,
+      password
+    })
+    const { token } = response.data;
+    await AsyncStorage.setItem('authToken', token);
+    console.log(response);
+    
+
+    navigate.push("/")
   };
 
   const handleChange = (field: string, value: any) => {

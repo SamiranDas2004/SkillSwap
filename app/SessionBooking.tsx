@@ -1,31 +1,58 @@
-import React, { useState } from 'react'
-import { View, Text, Image, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { useLocalSearchParams } from 'expo-router';
+import React, { useState } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SessionBooking = () => {
-  const [offerDescription, setOfferDescription] = useState('')
+  const { name, id, skills } = useLocalSearchParams();
+  const [offerDescription, setOfferDescription] = useState('');
+
+  // Ensure skills is parsed correctly
+  const skillsArray = skills ? JSON.parse(skills as string) : [];
+
+  const handelSubmit = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken'); // Await retrieval
+  
+      if (!token) {
+        alert("You are not signed in. Please sign in to request a session.");
+        return; // Stop execution if no token
+      }
+  
+      const response = await axios.post(
+        "http://192.168.0.108:5000/req/createReq",
+        {
+          to:id,
+          message: offerDescription, // Send the message user wrote
+        },
+        {
+          headers: {
+            authToken: token, // Use the retrieved token
+          },
+        }
+      );
+  
+      console.log("Request successful:", response.data);
+      alert("Session request sent successfully!");
+    } catch (error) {
+      console.error("Error sending request:", error);
+      alert("Failed to send request. Please try again.");
+    }
+  };
+  
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Scrollable Content */}
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        {/* Image Section */}
-        <Image 
-          source={{ uri: '/api/placeholder/400/300' }} 
-          style={styles.heroImage}
-          resizeMode="cover"
-        />
-
-        {/* Description Section */}
         <View style={styles.descriptionContainer}>
-          <Text style={styles.titleText}>Book Your Session</Text>
+          <Text style={styles.titleText}>Request Your Session</Text>
           <Text style={styles.descriptionText}>
-            Share what you can offer in this collaborative session. 
-            Be specific about your skills, expertise, and what makes your contribution unique.
+            {name} is skilled in {skillsArray.join(', ')}. What can you offer to {name}? Please write your message below.
           </Text>
         </View>
 
-        {/* Input Box */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
@@ -37,14 +64,14 @@ const SessionBooking = () => {
           />
         </View>
 
-        {/* Submit Button */}
-        <TouchableOpacity style={styles.submitButton}>
-          <Text style={styles.submitButtonText}>Request Session</Text>
-        </TouchableOpacity>
+        <TouchableOpacity style={styles.submitButton} onPress={handelSubmit}>
+  <Text style={styles.submitButtonText}>Request Session</Text>
+</TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -52,11 +79,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   scrollContainer: {
-    paddingBottom: 20, // Space for the submit button
-  },
-  heroImage: {
-    width: '100%',
-    height: 250,
+    paddingBottom: 20,
   },
   descriptionContainer: {
     padding: 15,
@@ -95,6 +118,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-})
+});
 
-export default SessionBooking
+export default SessionBooking;

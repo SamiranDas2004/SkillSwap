@@ -8,14 +8,22 @@ import {
   StyleSheet, 
   Image, 
   KeyboardAvoidingView, 
-  Platform 
+  Platform, 
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Chat {
   text: string;
   sender: 'me' | 'other';  // Made sender required and strictly typed
   timestamp?: number;
+}
+
+interface Data{
+id:any,
+name:any
 }
 
 interface MessageData {
@@ -24,7 +32,28 @@ interface MessageData {
   timestamp: number;
 }
 
-const ChatBox = () => {
+import {jwtDecode} from 'jwt-decode';
+
+// Modify getAuthToken function
+const getAuthToken = async () => {
+  const token = await AsyncStorage.getItem('authToken');
+  if (!token) {
+    Alert.alert("Error", "You are not signed in. Please sign in first.");
+    return null;
+  }
+  
+  try {
+    const decodedToken = jwtDecode<{ id: string; email: string; name: string }>(token);
+    return decodedToken.id; // Return the user ID from the decoded token
+  } catch (error) {
+    console.error("Error decoding token:", error);
+    return null;
+  }
+};
+
+
+const ChatBox= () => {
+    const { name, id } = useLocalSearchParams();
   const [messages, setMessages] = useState<Chat[]>([
     { text: 'Hello!', sender: 'other', timestamp: Date.now() - 3000 },
     { text: 'Hi there!', sender: 'me', timestamp: Date.now() - 2000 },
@@ -33,44 +62,54 @@ const ChatBox = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [ws, setWs] = useState<WebSocket | null>(null);
 
+  console.log(id);
+  
   useEffect(() => {
-    const userId = 'your-mongodb-id'; // Replace with the user's actual MongoDB `_id`
-    const socket = new WebSocket(`ws://192.168.0.108:5000/?userId=${userId}`);
+    const setupWebSocket = async () => {
+      const userId = await getAuthToken(); // Get user ID from decoded token
+      if (!userId) return;
   
-    socket.onopen = () => {
-      console.log('WebSocket connected');
-    };
+      const socket = new WebSocket(`ws://192.168.0.108:5000/?userId=${userId}`);
   
-    socket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      console.log('Received message:', message);
-      
-      // Ensure the new message matches the Chat interface
-      const newMessage: Chat = {
-        text: message.text,
-        sender: 'other',
-        timestamp: Date.now()
+      socket.onopen = () => {
+        console.log('WebSocket connected');
       };
-
-      setMessages(prevMessages => [...prevMessages, newMessage]);
+  
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        console.log('Received message:', message);
+  
+        const newMessage: Chat = {
+          text: message.text,
+          sender: 'other',
+          timestamp: Date.now()
+        };
+  
+        setMessages(prevMessages => [...prevMessages, newMessage]);
+      };
+  
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+  
+      socket.onclose = () => {
+        console.log('WebSocket connection closed');
+      };
+  
+      setWs(socket);
     };
   
-    socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-  
-    socket.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
-  
-    setWs(socket);
+    setupWebSocket();
   
     return () => {
-      socket.close();
+      if (ws) {
+        ws.close();
+      }
     };
   }, []);
   
-  const sendMessage = (recipientId: string) => {
+  
+  const sendMessage = (recipientId: any) => {
     if (inputMessage.trim() === '' || !ws) return;
   
     const messageData: MessageData = {
@@ -123,8 +162,7 @@ const ChatBox = () => {
           style={styles.avatar} 
         />
         <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>John Doe</Text>
-          <Text style={styles.headerSubtitle}>Online</Text>
+          <Text style={styles.headerTitle}>{name}</Text>
         </View>
       </View>
 
@@ -163,7 +201,7 @@ const ChatBox = () => {
             styles.sendButton,
             !inputMessage.trim() && styles.sendButtonDisabled
           ]} 
-          onPress={() => sendMessage('6fgvhdbfiuhsfeheefue8')}
+          onPress={() => sendMessage(id)}
           disabled={!inputMessage.trim()}
         >
           <Ionicons 
