@@ -43,7 +43,7 @@ const SessionBooking = () => {
       }
 
       await axios.post(
-        "http://192.168.0.108:5000/req/createReq",
+        "http://192.168.29.108:5000/req/createReq",
         {
           to: id,
           message: offerDescription,

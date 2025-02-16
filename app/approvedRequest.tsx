@@ -41,7 +41,7 @@ const ApprovedRequests = () => {
       const token = await getAuthToken();
       if (!token) return;
 
-      const response = await axios.post('http://192.168.0.108:5000/req/showApprovedRequest', {}, {
+      const response = await axios.post('http://192.168.29.108:5000/req/showApprovedRequest', {}, {
         headers: {
           authToken: token
         }

@@ -52,7 +52,7 @@ const SearchScreen = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('http://192.168.0.108:5000/user/all');
+        const response = await axios.get('http://192.168.29.108:5000/user/all');
         setCollaborationData(response.data.data);
         setIsLoading(false);
       } catch (error) {

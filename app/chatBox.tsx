@@ -69,7 +69,7 @@ const ChatBox= () => {
       const userId = await getAuthToken(); // Get user ID from decoded token
       if (!userId) return;
   
-      const socket = new WebSocket(`ws://192.168.0.108:5000/?userId=${userId}`);
+      const socket = new WebSocket(`ws://192.168.29.108:5000/?userId=${userId}`);
   
       socket.onopen = () => {
         console.log('WebSocket connected');

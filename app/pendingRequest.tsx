@@ -39,7 +39,7 @@ const PendingRequests = () => {
         const token = await getAuthToken();
         if (!token) return;
 
-        const response = await axios.post('http://192.168.0.108:5000/req/requestToMe', {}, {
+        const response = await axios.post('http://192.168.29.108:5000/req/requestToMe', {}, {
           headers: {
             authToken: token,
           },
@@ -63,7 +63,7 @@ const PendingRequests = () => {
     if (!token) return;
 
     try {
-      const response = await axios.post("http://192.168.0.108:5000/req/approvedRequest", {
+      const response = await axios.post("http://192.168.29.108:5000/req/approvedRequest", {
         anotherUserId: by,
         requestId: id
       }, {
